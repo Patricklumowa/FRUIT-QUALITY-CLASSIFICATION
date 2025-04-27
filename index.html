@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Quality Detection</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Load TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <!-- Load the Teachable Machine Image model library -->
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
+</head>
+<body>
+    <!-- Background Canvas for Falling Fruits -->
+    <canvas id="background-canvas"></canvas>
+    
+    <div class="container">
+        <header>
+            <h1>Fruit Quality Detection</h1>
+            <p class="subtitle">Group 1 - Real-time fruit analysis</p>
+        </header>
+
+        <div class="model-selector">
+            <h2>Select Fruit Model</h2>
+            <div class="model-buttons">
+                <button id="apple-model" class="model-btn active">
+                    <div class="icon">🍎</div>
+                    <span>Apple</span>
+                </button>
+                <button id="tomato-model" class="model-btn">
+                    <div class="icon">🍅</div>
+                    <span>Tomato</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="detection-area">
+            <div class="webcam-container">
+                <div id="webcam-wrapper">
+                    <div id="webcam-container"></div>
+                    <div class="webcam-overlay">
+                        <div class="corner top-left"></div>
+                        <div class="corner top-right"></div>
+                        <div class="corner bottom-left"></div>
+                        <div class="corner bottom-right"></div>
+                    </div>
+                </div>
+                <button id="start-btn" class="control-btn">
+                    <span class="btn-text">Start Detection</span>
+                </button>
+            </div>
+
+            <div class="results-container">
+                <h2>Detection Results</h2>
+                <div class="current-model">
+                    <span>Current Model:</span>
+                    <span id="model-name">Apple</span>
+                </div>
+                <div id="label-container" class="predictions"></div>
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span id="status-text">Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>How It Works</h3>
+            <p>This application uses machine learning to detect the quality of apples and tomatoes in real-time. Select a fruit model, allow camera access, and position the fruit in view for analysis.</p>
+        </div>
+    </div>
+
+    <!-- Load our script after the libraries -->
+    <script src="script.js"></script>
+</body>
+</html>
