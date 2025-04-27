@@ -50,17 +50,22 @@ async function checkAvailableCameras() {
             return;
         }
         
+        // Request camera permission first to get accurate device list
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        
         // Get all media devices
         const devices = await navigator.mediaDevices.enumerateDevices();
         
         // Filter for video input devices (cameras)
         videoDevices = devices.filter(device => device.kind === 'videoinput');
         
+        console.log("Available cameras:", videoDevices);
+        
         // Enable/disable camera switch button based on available cameras
         const switchCameraBtn = document.getElementById("switch-camera-btn");
         if (videoDevices.length > 1) {
             switchCameraBtn.disabled = false;
-            switchCameraBtn.title = "Switch between available cameras";
+            switchCameraBtn.title = `Switch between ${videoDevices.length} available cameras`;
         } else {
             switchCameraBtn.disabled = true;
             switchCameraBtn.title = "No additional cameras available";
@@ -69,6 +74,7 @@ async function checkAvailableCameras() {
         console.log(`Found ${videoDevices.length} cameras`);
     } catch (error) {
         console.error("Error checking cameras:", error);
+        updateStatus("Camera permission denied");
     }
 }
 
@@ -82,6 +88,9 @@ async function switchCamera() {
     // Move to the next camera in the list
     currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
     
+    updateStatus(`Switching to camera ${currentDeviceIndex + 1}/${videoDevices.length}...`);
+    console.log(`Switching to camera index ${currentDeviceIndex}:`, videoDevices[currentDeviceIndex]);
+    
     // If detection is running, restart it with the new camera
     if (isRunning) {
         // Stop current webcam
@@ -93,15 +102,26 @@ async function switchCamera() {
         const webcamContainer = document.getElementById("webcam-container");
         webcamContainer.innerHTML = "";
         
-        // Reinitialize with new camera
-        updateStatus("Switching camera...");
-        await initCamera();
-        
-        // Resume prediction loop
-        window.requestAnimationFrame(loop);
+        try {
+            // Reinitialize with new camera
+            await initCamera();
+            
+            // Resume prediction loop
+            window.requestAnimationFrame(loop);
+            
+            updateStatus(`Using camera ${currentDeviceIndex + 1}/${videoDevices.length}`);
+        } catch (error) {
+            console.error("Error switching camera:", error);
+            updateStatus("Failed to switch camera");
+            
+            // Try to revert to previous camera
+            currentDeviceIndex = (currentDeviceIndex - 1 + videoDevices.length) % videoDevices.length;
+            await initCamera();
+            window.requestAnimationFrame(loop);
+        }
+    } else {
+        updateStatus(`Selected camera ${currentDeviceIndex + 1}/${videoDevices.length}`);
     }
-    
-    updateStatus(`Switched to camera ${currentDeviceIndex + 1}/${videoDevices.length}`);
 }
 
 // Set up canvas
@@ -287,6 +307,7 @@ async function startDetection() {
     try {
         updateStatus("Starting...");
         document.getElementById("start-btn").disabled = true;
+        document.getElementById("switch-camera-btn").disabled = true;
         
         await init();
         
@@ -294,12 +315,22 @@ async function startDetection() {
         document.getElementById("start-btn").querySelector(".btn-text").textContent = "Stop Detection";
         document.getElementById("start-btn").disabled = false;
         
+        // Only enable camera switch if we have multiple cameras
+        if (videoDevices.length > 1) {
+            document.getElementById("switch-camera-btn").disabled = false;
+        }
+        
         document.querySelector(".status-dot").classList.add("active");
         updateStatus("Running");
     } catch (error) {
         console.error("Error starting detection:", error);
         updateStatus("Error: " + error.message);
         document.getElementById("start-btn").disabled = false;
+        
+        // Only enable camera switch if we have multiple cameras
+        if (videoDevices.length > 1) {
+            document.getElementById("switch-camera-btn").disabled = false;
+        }
     }
 }
 
@@ -326,6 +357,7 @@ function stopDetection() {
 // Update status message
 function updateStatus(message) {
     document.getElementById("status-text").textContent = message;
+    console.log("Status:", message);
 }
 
 // Initialize the model and webcam
@@ -393,28 +425,57 @@ async function initCamera() {
     const flip = true; // whether to flip the webcam
     const size = 300;
     
-    // Create webcam with specific device if available
-    let cameraOptions = {};
-    
-    if (videoDevices.length > 0) {
-        const deviceId = videoDevices[currentDeviceIndex].deviceId;
-        cameraOptions = {
-            deviceId: { exact: deviceId }
-        };
-    }
-    
-    webcam = new window.tmImage.Webcam(size, size, flip, cameraOptions);
-    
     try {
-        await webcam.setup(); // request access to the webcam
-        await webcam.play();
-        
-        // Append webcam element to the DOM
-        const webcamContainer = document.getElementById("webcam-container");
-        webcamContainer.innerHTML = "";
-        webcamContainer.appendChild(webcam.canvas);
-        
-        return true;
+        // Create webcam with specific device if available
+        if (videoDevices.length > 0) {
+            const deviceId = videoDevices[currentDeviceIndex].deviceId;
+            console.log(`Initializing camera with deviceId: ${deviceId}`);
+            
+            // First, directly test if we can access this camera
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: { exact: deviceId }
+                }
+            });
+            
+            // Stop the test stream immediately
+            stream.getTracks().forEach(track => track.stop());
+            
+            // Now create the webcam with this device
+            webcam = new window.tmImage.Webcam(size, size, flip);
+            
+            // Set the deviceId constraint directly on the webcam's getUserMedia call
+            webcam.webcamElement.srcObject = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: { exact: deviceId },
+                    width: { ideal: size },
+                    height: { ideal: size }
+                }
+            });
+            
+            // Setup and play
+            await webcam.setup(false); // false means don't call getUserMedia again
+            await webcam.play();
+            
+            // Append webcam element to the DOM
+            const webcamContainer = document.getElementById("webcam-container");
+            webcamContainer.innerHTML = "";
+            webcamContainer.appendChild(webcam.canvas);
+            
+            return true;
+        } else {
+            // No specific device, use default
+            webcam = new window.tmImage.Webcam(size, size, flip);
+            await webcam.setup();
+            await webcam.play();
+            
+            // Append webcam element to the DOM
+            const webcamContainer = document.getElementById("webcam-container");
+            webcamContainer.innerHTML = "";
+            webcamContainer.appendChild(webcam.canvas);
+            
+            return true;
+        }
     } catch (error) {
         console.error("Error setting up camera:", error);
         updateStatus("Camera error: " + error.message);
