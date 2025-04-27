@@ -221,6 +221,13 @@ h1 {
     border-right-width: 3px;
 }
 
+.control-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: center;
+}
+
 .control-btn {
     padding: 0.8rem 1.5rem;
     border: none;
@@ -236,9 +243,23 @@ h1 {
     box-shadow: 0 4px 10px rgba(255, 107, 107, 0.3);
 }
 
-.control-btn:hover {
+.control-btn:hover:not(:disabled) {
     background-color: #ff5252;
     transform: translateY(-2px);
+}
+
+.control-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.control-btn.secondary {
+    background-color: var(--secondary-color);
+    box-shadow: 0 4px 10px rgba(78, 205, 196, 0.3);
+}
+
+.control-btn.secondary:hover:not(:disabled) {
+    background-color: #3dbeb3;
 }
 
 .results-container {
