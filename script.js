@@ -224,7 +224,7 @@ async function init() {
 
 // Initialize webcam
 async function initCamera() {
-    const flip = true;
+    const flip = false;
     const size = 300;
     webcam = new window.tmImage.Webcam(size, size, flip);
     const deviceId = videoDevices[currentDeviceIndex]?.deviceId;
