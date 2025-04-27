@@ -19,9 +19,6 @@ let canvas, ctx;
 let animationId;
 let videoDevices = [];
 let currentDeviceIndex = 0;
-let lastFrameTime = 0;
-const targetFPS = 30;  // Target frame rate: 30 FPS
-const frameDuration = 1000 / targetFPS; // Time per frame in milliseconds
 
 // DOM Elements
 document.addEventListener("DOMContentLoaded", function() {
@@ -43,16 +40,6 @@ document.addEventListener("DOMContentLoaded", function() {
     // Check for available cameras
     checkAvailableCameras();
 });
-
-// Function to update status messages in the UI
-function updateStatus(message) {
-    const statusElement = document.getElementById("status-display");
-    if (statusElement) {
-        statusElement.textContent = message;
-    } else {
-        console.warn("Status element not found!");
-    }
-}
 
 // Check for available video devices (cameras)
 async function checkAvailableCameras() {
@@ -117,7 +104,7 @@ async function switchCamera() {
         
         try {
             // Reinitialize with new camera
-            await initCamera();
+            await init();
             
             // Resume prediction loop
             window.requestAnimationFrame(loop);
@@ -129,7 +116,7 @@ async function switchCamera() {
             
             // Try to revert to previous camera
             currentDeviceIndex = (currentDeviceIndex - 1 + videoDevices.length) % videoDevices.length;
-            await initCamera();
+            await init();
             window.requestAnimationFrame(loop);
         }
     } else {
@@ -322,52 +309,37 @@ async function startDetection() {
         document.getElementById("start-btn").disabled = true;
         document.getElementById("switch-camera-btn").disabled = true;
         
-        await init();
+        await init(); // This is where the webcam and model are initialized
         
         isRunning = true;
         document.getElementById("start-btn").querySelector(".btn-text").textContent = "Stop Detection";
         document.getElementById("start-btn").disabled = false;
+        document.getElementById("switch-camera-btn").disabled = false;
         
-        // Only enable camera switch if we have multiple cameras
-        if (videoDevices.length > 1) {
-            document.getElementById("switch-camera-btn").disabled = false;
-        }
-        
-        // Start the frame loop
-        window.requestAnimationFrame(loop);
+        updateStatus("Detection started.");
     } catch (error) {
         console.error("Error starting detection:", error);
-        updateStatus("Failed to start detection");
+        updateStatus("Error starting detection: " + error.message);
+        
+        document.getElementById("start-btn").disabled = false;
+        document.getElementById("switch-camera-btn").disabled = false;
     }
 }
 
 // Stop detection
 function stopDetection() {
+    if (webcam) {
+        webcam.stop();
+    }
     isRunning = false;
     document.getElementById("start-btn").querySelector(".btn-text").textContent = "Start Detection";
-    webcam.stop();
-    webcam = null;
+    updateStatus("Detection stopped.");
 }
 
-// Run predictions loop
-async function loop(timestamp) {
-    // Check if enough time has passed for the next frame (30 FPS)
-    if (timestamp - lastFrameTime < frameDuration) {
-        // Wait for the next frame
-        window.requestAnimationFrame(loop);
-        return;
+// Update status text
+function updateStatus(message) {
+    const statusElement = document.getElementById("status");
+    if (statusElement) {
+        statusElement.textContent = message;
     }
-    
-    lastFrameTime = timestamp;
-    
-    // Make predictions
-    if (webcam && model) {
-        const predictions = await model.predict(webcam.canvas);
-        
-        // Process predictions (e.g., draw bounding boxes, labels, etc.)
-        processPredictions(predictions);
-    }
-    
-    // Keep running the loop
-    window.requestAnimationFrame(loop);
 }
