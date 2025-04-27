@@ -44,6 +44,16 @@ document.addEventListener("DOMContentLoaded", function() {
     checkAvailableCameras();
 });
 
+// Function to update status messages in the UI
+function updateStatus(message) {
+    const statusElement = document.getElementById("status-display");
+    if (statusElement) {
+        statusElement.textContent = message;
+    } else {
+        console.warn("Status element not found!");
+    }
+}
+
 // Check for available video devices (cameras)
 async function checkAvailableCameras() {
     try {
