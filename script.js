@@ -17,6 +17,8 @@ let currentModel = "apple";
 let particles = [];
 let canvas, ctx;
 let animationId;
+let videoDevices = [];
+let currentDeviceIndex = 0;
 
 // DOM Elements
 document.addEventListener("DOMContentLoaded", function() {
@@ -27,13 +29,80 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("start-btn").addEventListener("click", toggleDetection);
     document.getElementById("apple-model").addEventListener("click", () => switchModel("apple"));
     document.getElementById("tomato-model").addEventListener("click", () => switchModel("tomato"));
+    document.getElementById("switch-camera-btn").addEventListener("click", switchCamera);
     
     // Create initial particles
     createParticles("apple");
     
     // Start animation
     animateParticles();
+    
+    // Check for available cameras
+    checkAvailableCameras();
 });
+
+// Check for available video devices (cameras)
+async function checkAvailableCameras() {
+    try {
+        // Check if mediaDevices is supported
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+            console.log("MediaDevices API not supported in this browser");
+            return;
+        }
+        
+        // Get all media devices
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        
+        // Filter for video input devices (cameras)
+        videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        // Enable/disable camera switch button based on available cameras
+        const switchCameraBtn = document.getElementById("switch-camera-btn");
+        if (videoDevices.length > 1) {
+            switchCameraBtn.disabled = false;
+            switchCameraBtn.title = "Switch between available cameras";
+        } else {
+            switchCameraBtn.disabled = true;
+            switchCameraBtn.title = "No additional cameras available";
+        }
+        
+        console.log(`Found ${videoDevices.length} cameras`);
+    } catch (error) {
+        console.error("Error checking cameras:", error);
+    }
+}
+
+// Switch to the next available camera
+async function switchCamera() {
+    if (videoDevices.length <= 1) {
+        updateStatus("No additional cameras available");
+        return;
+    }
+    
+    // Move to the next camera in the list
+    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+    
+    // If detection is running, restart it with the new camera
+    if (isRunning) {
+        // Stop current webcam
+        if (webcam) {
+            webcam.stop();
+        }
+        
+        // Clear webcam container
+        const webcamContainer = document.getElementById("webcam-container");
+        webcamContainer.innerHTML = "";
+        
+        // Reinitialize with new camera
+        updateStatus("Switching camera...");
+        await initCamera();
+        
+        // Resume prediction loop
+        window.requestAnimationFrame(loop);
+    }
+    
+    updateStatus(`Switched to camera ${currentDeviceIndex + 1}/${videoDevices.length}`);
+}
 
 // Set up canvas
 function setupCanvas() {
@@ -280,17 +349,8 @@ async function init() {
     model = await window.tmImage.load(modelURL, metadataURL);
     maxPredictions = model.getTotalClasses();
 
-    // Setup webcam
-    updateStatus("Setting up webcam...");
-    const flip = true; // whether to flip the webcam
-    webcam = new window.tmImage.Webcam(300, 300, flip); // width, height, flip
-    await webcam.setup(); // request access to the webcam
-    await webcam.play();
-    
-    // Append webcam element to the DOM
-    const webcamContainer = document.getElementById("webcam-container");
-    webcamContainer.innerHTML = "";
-    webcamContainer.appendChild(webcam.canvas);
+    // Setup webcam with the selected camera
+    await initCamera();
     
     // Create prediction elements
     labelContainer = document.getElementById("label-container");
@@ -323,6 +383,43 @@ async function init() {
     
     // Start prediction loop
     window.requestAnimationFrame(loop);
+}
+
+// Initialize webcam with selected device
+async function initCamera() {
+    updateStatus("Setting up camera...");
+    
+    // Setup webcam options
+    const flip = true; // whether to flip the webcam
+    const size = 300;
+    
+    // Create webcam with specific device if available
+    let cameraOptions = {};
+    
+    if (videoDevices.length > 0) {
+        const deviceId = videoDevices[currentDeviceIndex].deviceId;
+        cameraOptions = {
+            deviceId: { exact: deviceId }
+        };
+    }
+    
+    webcam = new window.tmImage.Webcam(size, size, flip, cameraOptions);
+    
+    try {
+        await webcam.setup(); // request access to the webcam
+        await webcam.play();
+        
+        // Append webcam element to the DOM
+        const webcamContainer = document.getElementById("webcam-container");
+        webcamContainer.innerHTML = "";
+        webcamContainer.appendChild(webcam.canvas);
+        
+        return true;
+    } catch (error) {
+        console.error("Error setting up camera:", error);
+        updateStatus("Camera error: " + error.message);
+        throw error;
+    }
 }
 
 // Animation loop
