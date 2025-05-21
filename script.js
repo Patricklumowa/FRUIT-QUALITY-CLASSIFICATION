@@ -9,7 +9,7 @@ const MODEL_PATHS = {
         name: "Tomato"
     }
 };
-
+//
 // Global variables
 let model, webcam, labelContainer, maxPredictions;
 let isRunning = false;
