@@ -55,7 +55,7 @@ async function checkAvailableCameras() {
     }
 }
 
-// Switch to next camera
+// Switch to next camera kinda buggy - imma fix later
 async function switchCamera() {
     if (videoDevices.length <= 1) return;
     currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
